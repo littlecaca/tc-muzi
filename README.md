@@ -1,2 +1,10 @@
 # 1 编译说明
-具体参考第一节课讲解的方式编译和运行
+```shell
+mkdir build
+cd build
+cmake ..
+```
+# 2 生成protobuf和grpc接口类
+```shell
+./proto.sh
+```
