@@ -6,6 +6,7 @@
 #include <muzi/inet_address.h>
 #include <muzi/noncopyable.h>
 #include <muzi/tcp_server.h>
+#include <muzi/thread_pool.h>
 
 #include "dlog.h"
 #include "http_parser_wrapper.h"
@@ -14,11 +15,12 @@ class TCServer : muzi::noncopyable
 {
 public:
     TCServer(muzi::EventLoop *loop, const std::string &ip, uint16_t port)
-        : server_(loop, muzi::InetAddress(ip, port), "TCServer", true)
-        
+        : server_(loop, muzi::InetAddress(ip, port), "TCServer", true),
+          enable_thread_pool_(false)
     {
         server_.SetConnectionCallback(&OnConnection);
-        server_.SetMessageCallback(&OnRead);
+        server_.SetMessageCallback(std::bind(&TCServer::OnRead, this, std::placeholders::_1, 
+            std::placeholders::_2, std::placeholders::_3));
         server_.SetWriteCompleteCallback(&OnWriteComlete);
     }
 
@@ -32,7 +34,13 @@ public:
         server_.SetThreadNum(cnt - 1);
     }
 
-    static void OnRead(const muzi::TcpConnectionPtr &conn, muzi::Buffer *buf, muzi::Timestamp time);
+    void SetThreadPool(size_t cnt)
+    {
+        enable_thread_pool_ = true;
+        thread_pool_.Start(cnt);
+    }
+
+    void OnRead(const muzi::TcpConnectionPtr &conn, muzi::Buffer *buf, muzi::Timestamp time);
     
     static void OnConnection(const muzi::TcpConnectionPtr &conn)
     {
@@ -68,4 +76,6 @@ private:
     static void _HandleShareFilesRequest(const muzi::TcpConnectionPtr &conn, string &url, string &post_data);
 private:
     muzi::TcpServer server_;
+    bool enable_thread_pool_;
+    muzi::ThreadPool thread_pool_;
 };

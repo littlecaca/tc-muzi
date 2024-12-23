@@ -53,7 +53,7 @@ int handleShareFile(string &user, string &md5, string &filename) {
     sprintf(fileid, "%s%s", md5.c_str(), filename.c_str());
 
     if (cache_conn) {
-        ret2 = cache_conn->ZsetExit(FILE_PUBLIC_ZSET, fileid);
+        ret2 = cache_conn->ZsetExist(FILE_PUBLIC_ZSET, fileid);
     } else {
         ret2 = 0;
     }
@@ -186,7 +186,7 @@ int handleDeleteFile(const string &user, const string &md5, const string &filena
     sprintf(fileid, "%s%s", md5.c_str(), filename.c_str());
 
     //===1、先判断此文件是否已经分享，判断集合有没有这个文件，如果有，说明别人已经分享此文件
-    ret2 = cache_conn->ZsetExit(FILE_PUBLIC_ZSET, fileid);
+    ret2 = cache_conn->ZsetExist(FILE_PUBLIC_ZSET, fileid);
     LogInfo("ret2: {}", ret2);
     if (ret2 == 1) //存在
     {

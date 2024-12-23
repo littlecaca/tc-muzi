@@ -100,7 +100,7 @@ int handlePvFile(string &md5, string &filename) {
     db_conn->Commit();
 
     // 2.判断元素是否在集合中(redis操作)
-    ret2 = cache_conn->ZsetExit(FILE_PUBLIC_ZSET, fileid);
+    ret2 = cache_conn->ZsetExist(FILE_PUBLIC_ZSET, fileid);
     if (ret2 == 1) //存在
     {              //===3、如果存在，有序集合score+1
         ret = cache_conn->ZsetIncr(
@@ -109,16 +109,16 @@ int handlePvFile(string &md5, string &filename) {
         if (ret != 0) {
             LogError("ZsetIncr 操作失败");
         }
-    } else if (ret2 == 0) //不存在
-    {                     //===4、如果不存在，从mysql导入数据
+    } else if (ret2 == 0)  {                   
+        //===4、如果不存在，从mysql导入数据
         //===5、redis集合中增加一个元素(redis操作)
         cache_conn->ZsetAdd(FILE_PUBLIC_ZSET, pv + 1, fileid);
 
         //===6、redis对应的hash也需要变化 (redis操作)
-        //     fileid ------>  filename
+        // fileid ------>  filename
         cache_conn->Hset(FILE_NAME_HASH, fileid, filename);
-    } else //出错
-    {
+    } else { 
+        // 出错
         ret = -1;
         goto END;
     }
@@ -129,7 +129,6 @@ END:
         成功：{"code":0}
         失败：{"code":1}
     */
-
     if (ret == 0) {
         return HTTP_RESP_OK;
     } else {
@@ -348,13 +347,13 @@ int ApiDealsharefile(string &url, string &post_data, string &str_json) {
     }
 
     ret = 0;
-    if (strcmp(cmd, "cancel") == 0) //取消分享文件
+    if (strcmp(cmd, "cancel") == 0)         //取消分享文件
     {
         ret = handleCancelShareFile(user_name, md5, filename);
-    } else if (strcmp(cmd, "save") == 0) //转存文件
+    } else if (strcmp(cmd, "save") == 0)    //转存文件
     {
         ret = handleSaveFile(user_name, md5, filename);
-    } else if (strcmp(cmd, "pv") == 0) //文件下载标志处理
+    } else if (strcmp(cmd, "pv") == 0)      //文件下载标志处理
     {
         ret = handlePvFile(md5, filename);
     }

@@ -82,7 +82,7 @@ class CacheConn {
     bool Lrange(string key, long start, long end, list<string> &ret_value);
 
     // zset 相关
-    int ZsetExit(string key, string member);
+    int ZsetExist(string key, string member);
     int ZsetAdd(string key, long score, string member);
     int ZsetZrem(string key, string member);
     int ZsetIncr(string key, string member);

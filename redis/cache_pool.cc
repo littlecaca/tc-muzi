@@ -1,5 +1,6 @@
 #include "cache_pool.h"
 
+#include "read.h"
 #include "util.h"
 #include <stdlib.h>
 #include <string.h>
@@ -639,29 +640,32 @@ bool CacheConn::Lrange(string key, long start, long end,
     return true;
 }
 
-int CacheConn::ZsetExit(string key, string member) {
-    int retn = 0;
+int CacheConn::ZsetExist(string key, string member) {
+    int retn = -1;
     redisReply *reply = NULL;
     if (Init()) {
-        return -1;
+        return retn;
     }
 
-    //执行命令
-    reply =
-        (redisReply *)redisCommand(context_, "zlexcount %s [%s [%s",
-                                   key.c_str(), member.c_str(), member.c_str());
-
-    if (reply->type != REDIS_REPLY_INTEGER) {
-        log_error("zlexcount: %s,member: %s Error:%s,%s\n", key.c_str(),
-                  member.c_str(), reply->str, context_->errstr);
-        retn = -1;
+    // 执行命令
+    reply = (redisReply *)redisCommand(context_, "zscore %s %s",
+                                   key.c_str(), member.c_str());
+    if (context_->err != 0)
+    {
+        log_error("zscore: %s, member: %s Error:%s,%s\n", key.c_str(),
+            member.c_str(), reply->str, context_->errstr);
         goto END;
     }
 
-    retn = reply->integer;
-
+    if (reply->type == REDIS_REPLY_NIL) {
+        retn = 0;
+    } else if (reply->type == REDIS_REPLY_STRING) {
+        retn = 1;
+    } else {
+        log_error("zscore: %s, member: %s Error:%s,%s\n", key.c_str(),
+                  member.c_str(), reply->str, context_->errstr);
+    }
 END:
-
     freeReplyObject(reply);
     return retn;
 }
@@ -715,17 +719,19 @@ END:
     freeReplyObject(reply);
     return retn;
 }
+
+// @return 0: success, -1: failed
 int CacheConn::ZsetIncr(string key, string member) {
     int retn = 0;
     redisReply *reply = NULL;
     if (Init()) {
-        return false;
+        return -1;
     }
 
     reply = (redisReply *)redisCommand(context_, "ZINCRBY %s 1 %s", key.c_str(),
                                        member.c_str());
     // rop_test_reply_type(reply);
-    if (strcmp(reply->str, "OK") != 0) {
+    if (context_->err != 0 || reply->type != REDIS_REPLY_STRING) {
         printf("Add or increment table: %s,member: %s Error:%s,%s\n",
                key.c_str(), member.c_str(), reply->str, context_->errstr);
 

@@ -20,7 +20,7 @@
     else { field = root[#field].asInt(); }
 
 
-//获取共享文件数量
+// 获取共享文件数量
 int getShareFilesCount(CDBConn *db_conn, CacheConn *cache_conn, int &count) {
     int ret = 0;
     int64_t file_count = 0;
@@ -54,8 +54,7 @@ int getShareFilesCount(CDBConn *db_conn, CacheConn *cache_conn, int &count) {
     return ret;
 }
 
-
-//获取共享文件个数
+// 获取共享文件个数
 int handleGetSharefilesCount(int &count) {
     CDBManager *db_manager = CDBManager::getInstance();
     CDBConn *db_conn = db_manager->GetDBConn("tuchuang_slave");
@@ -81,16 +80,14 @@ int encodeSharefilesJson(int ret, int total, string &resp_json) {
     return 0;
 }
 
-
-//获 取共享文件排行版
-//按下载量降序127.0.0.1:80/api/sharefiles?cmd=pvdesc
+// 获取共享文件排行版
+// 按下载量降序127.0.0.1:80/api/sharefiles?cmd=pvdesc
 void handleGetRankingFilelist(int start, int count, string &str_json) {
     /*
     a) mysql共享文件数量和redis共享文件数量对比，判断是否相等
     b) 如果不相等，清空redis数据，从mysql中导入数据到redis (mysql和redis交互)
     c) 从redis读取数据，给前端反馈相应信息
     */
-
     int ret = 0;
     char sql_cmd[SQL_MAX_LEN] = {0};
     int total = 0;
@@ -301,6 +298,7 @@ void handleGetShareFilelist(int start, int count, string &str_json) {
     } else {
         ret = -1;
     }
+
 END:
     if (ret == 0) {
         root["code"] = 0;

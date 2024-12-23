@@ -9,6 +9,7 @@
 #include <muzi/inet_address.h>
 #include <muzi/noncopyable.h>
 #include <muzi/tcp_server.h>
+#include <muzi/thread_pool.h>
 
 #include "api_common.h"
 #include "dlog.h"
@@ -47,34 +48,39 @@ void TCServer::OnRead(const muzi::TcpConnectionPtr &conn, muzi::Buffer *buf, muz
         string url = parser.GetUrl();
         string content = parser.GetBodyContent();
         LogInfo("url: {}", url);                     // for debug
+        muzi::ThreadPool::Task task;
         // 根据url处理不同的业务 
         if (strncmp(url.c_str(), "/api/reg", 8) == 0) { // 注册  url 路由。 根据根据url快速找到对应的处理函数， 能不能使用map，hash
-            _HandleRegisterRequest(conn, url, content);
+            task = std::bind(_HandleRegisterRequest, conn, url, content);
         } else if (strncmp(url.c_str(), "/api/login", 10) == 0) { // 登录
-            _HandleLoginRequest(conn, url, content);
+            task = std::bind(_HandleLoginRequest, conn, url, content);
         } else if (strncmp(url.c_str(), "/api/myfiles", 10) == 0) { //获取我的文件数量
-            _HandleMyfilesRequest(conn, url, content);
+            task = std::bind(_HandleMyfilesRequest, conn, url, content);
         }  else if (strncmp(url.c_str(), "/api/md5", 8) == 0) {       //
-            _HandleMd5Request(conn, url, content);                     // 处理
+            task = std::bind(_HandleMd5Request, conn, url, content);                     // 处理
         } else if (strncmp(url.c_str(), "/api/upload", 11) == 0) {   // 上传
             char *ct = parser.GetContentType();
             char *p = strstr(ct, "boundary=");
             string boundary = p ? p + 9 : "";
             boundary.insert(boundary.begin(), '-');
-            _HandleUploadRequest(conn, content, boundary);
+            task = std::bind(_HandleUploadRequest, conn, content, boundary);
         } else if (strncmp(url.c_str(), "/api/dealfile", 13) == 0) {
-            _HandleDealFileRequest(conn, url, content);
+            task = std::bind(_HandleDealFileRequest, conn, url, content);
         } else if (strncmp(url.c_str(), "/api/sharefiles", 15) == 0) {
-            _HandleShareFilesRequest(conn, url, content);
+            task = std::bind(_HandleShareFilesRequest, conn, url, content);
             // _HandleSharePictureRequest(conn, url, content);               
         } else if (strncmp(url.c_str(), "/api/sharepic", 13) == 0) {
-            _HandleSharePictureRequest(conn, url, content);               
+            task = std::bind(_HandleSharePictureRequest, conn, url, content);               
         } else if (strncmp(url.c_str(), "/api/dealsharefile", 18) == 0) { //
-            _HandleDealShareFileRequest(conn, url, content);
+            task = std::bind(_HandleDealShareFileRequest, conn, url, content);
         } else {
             LogError("url unknown, url= {}", url);
             conn->ForceClose();
+            return;
         }
+        if (enable_thread_pool_)
+            thread_pool_.Run(task);
+        else task();
     }
 }
 
