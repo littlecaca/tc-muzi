@@ -108,7 +108,7 @@ int handleShareFile(string &user, string &md5, string &filename) {
     }
 
     time_t now;
-    ;
+
     char create_time[TIME_STRING_LEN];
     //获取当前时间
     now = time(NULL);
@@ -345,7 +345,6 @@ int encodeDealfileJson(int ret, string &str_json) {
     return 0;
 }
 
-
 //文件下载标志处理
 int handlePvFile(string &user, string &md5, string &filename) {
     int ret = 0;
@@ -356,7 +355,7 @@ int handlePvFile(string &user, string &md5, string &filename) {
     CDBConn *db_conn = db_manager->GetDBConn("tuchuang_slave");
     AUTO_REL_DBCONN(db_manager, db_conn);
 
-    // sql语句
+    //sql语句
     //查看该文件的pv字段
     sprintf(sql_cmd,
             "select pv from user_file_list where user = '%s' and md5 = '%s' "

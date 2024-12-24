@@ -433,6 +433,13 @@ int ApiUpload(string &post_data, string &str_json, const string &split)
             msg.file_name(), msg.file_path(), msg.file_md5(), msg.file_size(), msg.user());
     }
 
+    try {
+        long_file_size = stol(msg.file_size());
+    } catch (...) {
+        LogError("不合法的file_size");
+        goto END;
+    }
+
     GetFileSuffix(msg.file_name().c_str(), suffix);
     strcat(new_file_path, msg.file_path().c_str()); // /root/tmp/1/0045118901
     strcat(new_file_path, ".");  // /root/tmp/1/0045118901.

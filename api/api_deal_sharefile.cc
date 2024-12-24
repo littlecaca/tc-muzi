@@ -233,12 +233,12 @@ int handleSaveFile(string &user_name, string &md5, string &filename) {
     CacheConn *cache_conn = cache_manager->GetCacheConn("token");
     AUTO_REL_CACHECONN(cache_manager, cache_conn);
 
-    //查看此用户，文件名和md5是否存在，如果存在说明此文件存在
+    // 查看此用户，文件名和md5是否存在，如果存在说明此文件存在
     sprintf(sql_cmd,
             "select * from user_file_list where user = '%s' and md5 = '%s' and "
             "file_name = '%s'",
             user_name.c_str(), md5.c_str(), filename.c_str());
-    //返回值： 0成功并保存记录集，1没有记录集，2有记录集但是没有保存，-1失败
+    // 返回值： 0成功并保存记录集，1没有记录集，2有记录集但是没有保存，-1失败
 
     // 有记录返回1，错误返回-1，无记录返回0
     ret2 = CheckwhetherHaveRecord(db_conn, sql_cmd);
@@ -253,7 +253,7 @@ int handleSaveFile(string &user_name, string &md5, string &filename) {
         goto END;
     }
 
-    //文件信息表，查找该文件的计数器
+    // 文件信息表，查找该文件的计数器
     sprintf(sql_cmd, "select count from file_info where md5 = '%s'", md5.c_str());
     count = 0;
     ret2 = GetResultOneCount(db_conn, sql_cmd, count); //执行sql语句
@@ -273,7 +273,7 @@ int handleSaveFile(string &user_name, string &md5, string &filename) {
 
     // 2、user_file_list插入一条数据
 
-    //使用函数gettimeofday()函数来得到时间。它的精度可以达到微妙
+    // 使用函数gettimeofday()函数来得到时间。它的精度可以达到微妙
     gettimeofday(&tv, NULL);
     ptm = localtime(
         &tv.tv_sec); //把从1970-1-1零点零分到当前时间系统所偏移的秒数时间转换为本地时间
