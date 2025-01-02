@@ -19,7 +19,6 @@
         return -1; } \
     else { field = root[#field].asInt(); }
 
-
 // 获取共享文件数量
 int getShareFilesCount(CDBConn *db_conn, CacheConn *cache_conn, int &count) {
     int ret = 0;
@@ -80,6 +79,54 @@ int encodeSharefilesJson(int ret, int total, string &resp_json) {
     return 0;
 }
 
+int InitializePvCache() 
+{
+    char sql_cmd[SQL_MAX_LEN] = {0};
+    int ret;
+
+    CDBManager *db_manager = CDBManager::getInstance();
+    CDBConn *db_conn = db_manager->GetDBConn("tuchuang_slave");
+    AUTO_REL_DBCONN(db_manager, db_conn);
+    CResultSet *pCResultSet = NULL;
+
+    CacheManager *cache_manager = CacheManager::getInstance();
+    CacheConn *cache_conn = cache_manager->GetCacheConn("token");
+    AUTO_REL_CACHECONN(cache_manager, cache_conn);
+
+    cache_conn->Del(FILE_PUBLIC_ZSET); // 删除集合
+    cache_conn->Del(FILE_NAME_HASH); // 删除hash， 理解 这里hash和集合的关系
+
+    // b) 从mysql中导入数据到redis
+    // sql语句
+    strcpy( sql_cmd, "select md5, file_name, pv from share_file_list order by pv desc");
+    LogInfo("执行: {}", sql_cmd);
+
+    pCResultSet = db_conn->ExecuteQuery(sql_cmd);
+    if (!pCResultSet) {
+        LogError("{} 操作失败", sql_cmd);
+        return -1;
+    }
+
+    // mysql_fetch_row从使用mysql_store_result得到的结果结构中提取一行，并把它放到一个行结构中。
+    // 当数据用完或发生错误时返回NULL.
+    while (pCResultSet->Next())
+    {
+        char field[1024] = {0};
+        string md5 = pCResultSet->GetString("md5"); // 文件的MD5
+        string file_name = pCResultSet->GetString("file_name"); // 文件名
+        int pv = pCResultSet->GetInt("pv");
+        sprintf(field, "%s%s", md5.c_str(),
+                file_name.c_str()); //文件标示，md5+文件名
+
+        //增加有序集合成员
+        cache_conn->ZsetAdd(FILE_PUBLIC_ZSET, pv, field);
+
+        //增加hash记录
+        cache_conn->Hset(FILE_NAME_HASH, field, file_name);
+    }
+    return 0;
+}
+
 // 获取共享文件排行版
 // 按下载量降序127.0.0.1:80/api/sharefiles?cmd=pvdesc
 void handleGetRankingFilelist(int start, int count, string &str_json) {
@@ -101,79 +148,79 @@ void handleGetRankingFilelist(int start, int count, string &str_json) {
     Json::Value files;
     int file_count = 0;
 
-    CDBManager *db_manager = CDBManager::getInstance();
-    CDBConn *db_conn = db_manager->GetDBConn("tuchuang_slave");
-    AUTO_REL_DBCONN(db_manager, db_conn);
-    CResultSet *pCResultSet = NULL;
+    // CDBManager *db_manager = CDBManager::getInstance();
+    // CDBConn *db_conn = db_manager->GetDBConn("tuchuang_slave");
+    // AUTO_REL_DBCONN(db_manager, db_conn);
+    // CResultSet *pCResultSet = NULL;
 
     CacheManager *cache_manager = CacheManager::getInstance();
     CacheConn *cache_conn = cache_manager->GetCacheConn("token");
     AUTO_REL_CACHECONN(cache_manager, cache_conn);
 
-    // 获取共享文件的总数量
-    ret = getShareFilesCount(db_conn, cache_conn, total);
-    if (ret != 0) {
-        LogError("{} 操作失败", sql_cmd);
-        ret = -1;
-        goto END;
-    }
-    //===1、mysql共享文件数量
-    sql_num = total;
+    // // 获取共享文件的总数量
+    // ret = getShareFilesCount(db_conn, cache_conn, total);
+    // if (ret != 0) {
+    //     LogError("{} 操作失败", sql_cmd);
+    //     ret = -1;
+    //     goto END;
+    // }
+    // //===1、mysql共享文件数量
+    // sql_num = total;
 
-    //===2、redis共享文件数量
-    redis_num = cache_conn->ZsetZcard(
-        FILE_PUBLIC_ZSET); // Zcard 命令用于计算集合中元素的数量。
-    if (redis_num == -1) {
-        LogError("ZsetZcard  操作失败");
-        ret = -1;
-        goto END;
-    }
+    // //===2、redis共享文件数量
+    // redis_num = cache_conn->ZsetZcard(
+    //     FILE_PUBLIC_ZSET); // Zcard 命令用于计算集合中元素的数量。
+    // if (redis_num == -1) {
+    //     LogError("ZsetZcard  操作失败");
+    //     ret = -1;
+    //     goto END;
+    // }
 
-    LogInfo("sql_num: {}, redis_num: {}", sql_num, redis_num);
+    // LogInfo("sql_num: {}, redis_num: {}", sql_num, redis_num);
 
-    //===3、mysql共享文件数量和redis共享文件数量对比，判断是否相等
-    if (redis_num != sql_num) // 如果数量太多会导致阻塞， redis mysql数据不一致怎么处理？
-    { //===4、如果不相等，清空redis数据，重新从mysql中导入数据到redis
-      //(mysql和redis交互)
+    // //===3、mysql共享文件数量和redis共享文件数量对比，判断是否相等
+    // if (redis_num != sql_num) // 如果数量太多会导致阻塞， redis mysql数据不一致怎么处理？
+    // { //===4、如果不相等，清空redis数据，重新从mysql中导入数据到redis
+    //   //(mysql和redis交互)
 
-        // a) 清空redis有序数据
-        cache_conn->Del(FILE_PUBLIC_ZSET); // 删除集合
-        cache_conn->Del(FILE_NAME_HASH); // 删除hash， 理解 这里hash和集合的关系
+    //     // a) 清空redis有序数据
+    //     cache_conn->Del(FILE_PUBLIC_ZSET); // 删除集合
+    //     cache_conn->Del(FILE_NAME_HASH); // 删除hash， 理解 这里hash和集合的关系
 
-        // b) 从mysql中导入数据到redis
-        // sql语句
-        strcpy( sql_cmd, "select md5, file_name, pv from share_file_list order by pv desc");
-        LogInfo("执行: {}", sql_cmd);
+    //     // b) 从mysql中导入数据到redis
+    //     // sql语句
+    //     strcpy( sql_cmd, "select md5, file_name, pv from share_file_list order by pv desc");
+    //     LogInfo("执行: {}", sql_cmd);
 
-        pCResultSet = db_conn->ExecuteQuery(sql_cmd);
-        if (!pCResultSet) {
-            LogError("{} 操作失败", sql_cmd);
-            ret = -1;
-            goto END;
-        }
+    //     pCResultSet = db_conn->ExecuteQuery(sql_cmd);
+    //     if (!pCResultSet) {
+    //         LogError("{} 操作失败", sql_cmd);
+    //         ret = -1;
+    //         goto END;
+    //     }
 
-        // mysql_fetch_row从使用mysql_store_result得到的结果结构中提取一行，并把它放到一个行结构中。
-        // 当数据用完或发生错误时返回NULL.
-        while (
-            pCResultSet
-                ->Next()) // 这里如果文件数量特别多，导致耗时严重，
-                          // 可以这么去改进当
-                          // mysql的记录和redis不一致的时候，开启一个后台线程去做同步
-        {
-            char field[1024] = {0};
-            string md5 = pCResultSet->GetString("md5"); // 文件的MD5
-            string file_name = pCResultSet->GetString("file_name"); // 文件名
-            int pv = pCResultSet->GetInt("pv");
-            sprintf(field, "%s%s", md5.c_str(),
-                    file_name.c_str()); //文件标示，md5+文件名
+    //     // mysql_fetch_row从使用mysql_store_result得到的结果结构中提取一行，并把它放到一个行结构中。
+    //     // 当数据用完或发生错误时返回NULL.
+    //     while (
+    //         pCResultSet
+    //             ->Next()) // 这里如果文件数量特别多，导致耗时严重，
+    //                       // 可以这么去改进当
+    //                       // mysql的记录和redis不一致的时候，开启一个后台线程去做同步
+    //     {
+    //         char field[1024] = {0};
+    //         string md5 = pCResultSet->GetString("md5"); // 文件的MD5
+    //         string file_name = pCResultSet->GetString("file_name"); // 文件名
+    //         int pv = pCResultSet->GetInt("pv");
+    //         sprintf(field, "%s%s", md5.c_str(),
+    //                 file_name.c_str()); //文件标示，md5+文件名
 
-            //增加有序集合成员
-            cache_conn->ZsetAdd(FILE_PUBLIC_ZSET, pv, field);
+    //         //增加有序集合成员
+    //         cache_conn->ZsetAdd(FILE_PUBLIC_ZSET, pv, field);
 
-            //增加hash记录
-            cache_conn->Hset(FILE_NAME_HASH, field, file_name);
-        }
-    }
+    //         //增加hash记录
+    //         cache_conn->Hset(FILE_NAME_HASH, field, file_name);
+    //     }
+    // }
 
     //===5、从redis读取数据，给前端反馈相应信息
     // char value[count][1024];
@@ -308,11 +355,12 @@ END:
         root["code"] = 1;
     }
     str_json = root.toStyledString();
+    LogInfo("返回: {}", str_json);
 }
 
-int ApiSharefile(string &url, string &post_data, string &resp_json)\
+int ApiSharefile(string &url, string &post_data, string &resp_json)
 {
-char cmd[20];
+    char cmd[20];
     string user;
     string token;
     int start = 0; //文件起点
@@ -324,7 +372,17 @@ char cmd[20];
     QueryParseKeyValue(url.c_str(), "cmd", cmd, NULL);
     
     LogInfo("cmd = {}", cmd);
-        Json::Value root;
+    if (strcmp(cmd, "count") == 0){ // count 获取用户文件个数
+        // 解析json
+        if (handleGetSharefilesCount(count) < 0){ //获取共享文件个数
+            encodeSharefilesJson(1, 0, resp_json);
+        } else {
+            encodeSharefilesJson(0, count, resp_json);
+        }
+        return 0;
+    }
+
+    Json::Value root;
     Json::Reader jsonReader;
     bool res = jsonReader.parse(post_data, root);
     if (!res)
@@ -335,24 +393,15 @@ char cmd[20];
     }
     //解析json
     ExtractFieldAsInt(root, count);
+    ExtractFieldAsInt(root, start)
     
-    
-    if (strcmp(cmd, "count") == 0){ // count 获取用户文件个数
-        // 解析json
-        if (handleGetSharefilesCount(count) < 0){ //获取共享文件个数
-            encodeSharefilesJson(1, 0, resp_json);
-        } else {
-            encodeSharefilesJson(0, count, resp_json);
-        }
-        return 0;
+    if (strcmp(cmd, "normal") == 0) {
+        handleGetShareFilelist(start, count, resp_json); // 获取共享文件
+    } else if (strcmp(cmd, "pvdesc") == 0) {
+        handleGetRankingFilelist(start, count, resp_json); ////获取共享文件排行版
     } else {
-        if (strcmp(cmd, "normal") == 0) {
-            handleGetShareFilelist(start, count, resp_json); // 获取共享文件
-        } else if (strcmp(cmd, "pvdesc") == 0) {
-            handleGetRankingFilelist(start, count, resp_json); ////获取共享文件排行版
-        } else {
-            encodeSharefilesJson(1, 0, resp_json);
-        }
+        encodeSharefilesJson(1, 0, resp_json);
     }
+    
     return 0;
 }

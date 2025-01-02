@@ -9,7 +9,7 @@
 #include "redis_keys.h"
 
 
-#define HTTP_RESPONSE_HTML_MAX 4096
+#define HTTP_RESPONSE_HTML_MAX 8192
 #define HTTP_RESPONSE_HTML                                                     \
     "HTTP/1.1 200 OK\r\n"                                                      \
     "Connection:close\r\n"                                                     \

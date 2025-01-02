@@ -31,7 +31,7 @@ public:
 
     void SetPollerNum(size_t cnt)
     {
-        server_.SetThreadNum(cnt - 1);
+        server_.SetThreadNum(cnt);
     }
 
     void SetThreadPool(size_t cnt)

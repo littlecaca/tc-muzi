@@ -3,5 +3,6 @@
 #include <string>
 using std::string;
 int ApiSharefile(string &url, string &post_data, string &str_json);
+int InitializePvCache();
 
 #endif

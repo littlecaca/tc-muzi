@@ -4,6 +4,7 @@
 #include "cache_pool.h"
 #include "db_pool.h"
 #include "api/api_upload.h"
+#include "api/api_sharefiles.h"
 
 #include <muzi/logger.h>
 
@@ -110,8 +111,9 @@ int main(int argc, const char *argv[])
         LogError("poller_num is missing.");
         return -1;
     }
-    LogInfo("poller_num(include the main loop): {}", str_poller_num);
     uint16_t http_port = atoi(str_http_port);
+    // (6)poller数量
+    LogInfo("poller_num(include the main loop): {}", str_poller_num);
     int poller_num = atoi(str_poller_num);
     assert(poller_num > 0);
 
@@ -127,6 +129,11 @@ int main(int argc, const char *argv[])
     CDBManager *db_manager = CDBManager::getInstance();
     if (!db_manager) {
         LogError("DBManager init failed");
+        return -1;
+    }
+    if (InitializePvCache() != 0)
+    {
+        LogError("Failed to load cache data (pv) from mysql to redis");
         return -1;
     }
 

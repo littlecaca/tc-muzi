@@ -29,7 +29,20 @@ message(STATUS "Using gRPC-${gRPC_VERSION}")
 # -Wno-deprecated选项用于关闭编译器产生的关于使用已经被废弃（deprecated）的函数、变量或头文件时产生的警告信息
 # -Wno-unused-parameter选项则用于关闭编译器产生的有关未使用函数参数的警告信息。在定义函数时，可能会为了保持一致性而添加某些无用参数。
 # 此时编译器会提示这些参数未被使用，但是你又不希望在编译时得到这个警告信息。这种情况下可以使用该选项。
-ADD_DEFINITIONS( -g -Wno-deprecated -Wno-unused-parameter -Bsymbolic -D_REENTRANT -D_FILE_OFFSET_BITS=64 -DAC_HAS_INFO
+
+option(TC_DEBUG_MODE "debug mode" OFF)
+
+if (TC_DEBUG_MODE)
+    message(STATUS "* start debug mode")
+    set(CMAKE_BUILD_TYPE Debug)
+else()
+    message(STATUS "* start release mode")
+    add_compile_definitions(NDEBUG)
+    set(CMAKE_BUILD_TYPE Release)
+    add_compile_options(-O2)
+endif()
+
+ADD_DEFINITIONS(-Wno-deprecated -Wno-unused-parameter -Bsymbolic -D_REENTRANT -D_FILE_OFFSET_BITS=64 -DAC_HAS_INFO
 -DAC_HAS_WARNING -DAC_HAS_ERROR -DAC_HAS_CRITICAL -DTIXML_USE_STL
 -DAC_HAS_DEBUG -DLINUX_DAEMON)
 

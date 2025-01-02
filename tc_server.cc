@@ -31,7 +31,7 @@ void TCServer::OnRead(const muzi::TcpConnectionPtr &conn, muzi::Buffer *buf, muz
 {
     LogInfo("connection = {}, socket_fd = {}", conn->GetName(), conn->GetSocketFd());
 
-    if (buf->GetPrependableBytes() > 2048) {
+    if (buf->ReadableBytes() > 4096) {
         LogError("get too much data: {}", buf->PeekAllAsString());
         conn->ForceClose();
         return;
